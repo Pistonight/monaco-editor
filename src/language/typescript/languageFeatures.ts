@@ -764,6 +764,7 @@ export class DocumentSemanticTokensAdapter
 	getLegend(): languages.SemanticTokensLegend {
 		return {
 			tokenTypes: [
+				// TODO adjust these to fit the theme, or adjust the theme to fit these
 				'type.class',
 				'type.enum',
 				'type.interface',
@@ -777,6 +778,7 @@ export class DocumentSemanticTokensAdapter
 				'variable.function',
 				'member'
 			],
+			// TODO adjust these to fit the theme, or adjust the theme to fit these
 			tokenModifiers: ['declaration', 'static', 'async', 'readonly', 'defaultLibrary', 'local']
 		};
 	}
