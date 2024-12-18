@@ -151,6 +151,13 @@ function setupMode(
 		if (modeConfiguration.diagnostics) {
 			providers.push(new languageFeatures.DiagnosticsAdapter(libFiles, defaults, modeId, worker));
 		}
+
+		providers.push(
+			languages.registerDocumentSemanticTokensProvider(
+				modeId,
+				new languageFeatures.DocumentSemanticTokensAdapter(worker)
+			)
+		);
 	}
 
 	registerProviders();

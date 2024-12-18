@@ -22,7 +22,8 @@ import {
 	IDisposable,
 	IRange,
 	MarkerTag,
-	MarkerSeverity
+	MarkerSeverity,
+	IEvent
 } from '../../fillers/monaco-editor-core';
 
 //#region utils copied from typescript to prevent loading the entire typescriptServices ---
@@ -751,6 +752,119 @@ export class DocumentHighlightAdapter
 				};
 			});
 		});
+	}
+}
+
+// --- semantic tokens -
+export class DocumentSemanticTokensAdapter
+	extends Adapter
+	implements languages.DocumentSemanticTokensProvider
+{
+	//onDidChange?: IEvent<void> | undefined;
+	getLegend(): languages.SemanticTokensLegend {
+		return {
+			tokenTypes: [
+				'type.class',
+				'type.enum',
+				'type.interface',
+				'type.namespace',
+				'type.parameters',
+				'type',
+				'variable.parameter',
+				'variable',
+				'variable.enummember',
+				'property',
+				'variable.function',
+				'member'
+			],
+			tokenModifiers: ['declaration', 'static', 'async', 'readonly', 'defaultLibrary', 'local']
+		};
+	}
+	// for debugging
+	getModifiers(x: number) {
+		const modifiers = this.getLegend().tokenModifiers;
+		const out = [];
+		let i = 0;
+		while (x > 0) {
+			if (x & 1) {
+				out.push(modifiers[i]);
+			}
+			i++;
+			x >>= 1;
+		}
+		return out;
+	}
+	public async provideDocumentSemanticTokens(
+		model: editor.ITextModel,
+		lastResultId: string | null,
+		token: CancellationToken
+	) {
+		const resource = model.uri;
+		const worker = await this._worker(resource);
+
+		if (model.isDisposed()) {
+			return;
+		}
+
+		const length = model.getValueLength();
+		// TODO: use DocumentRangeSemanticTokensProvider
+		const span2 = {
+			start: 0,
+			length
+		};
+
+		const result = await worker.getEncodedSemanticClassifications(resource.toString(), span2);
+
+		if (!result || model.isDisposed()) {
+			return;
+		}
+
+		const { spans } = result;
+		const data: number[] = [];
+		let prevLine = 1;
+		let prevStart = 1;
+		// for debugging
+		console.log('start');
+		const value = model.getValue();
+
+		for (let i = 0; i + 3 <= spans.length; i += 3) {
+			const start = spans[i];
+			const length = spans[i + 1];
+			const typeAndModifier = spans[i + 2];
+			let type = typeAndModifier >> 8;
+			if (!type) {
+				continue;
+			}
+			type--; // for offset
+			const modifier = typeAndModifier & 0xff;
+			const { startLineNumber, startColumn, endLineNumber, endColumn } = this._textSpanToRange(
+				model,
+				{ start, length }
+			);
+			if (startLineNumber === endLineNumber) {
+				const deltaLine = startLineNumber - prevLine;
+				const deltaStart = deltaLine === 0 ? startColumn - prevStart : startColumn - 1;
+				prevLine = endLineNumber;
+				prevStart = startColumn;
+
+				// for debugging
+				console.log({
+					value: value.slice(start, start + length),
+					type: this.getLegend().tokenTypes[type],
+					modifier: this.getModifiers(modifier).join(' ')
+				});
+				data.push(deltaLine, deltaStart, length, type, modifier);
+			} else {
+				// multi-line case: is this possible?
+			}
+		}
+
+		return {
+			data: new Uint32Array(data)
+		};
+	}
+	releaseDocumentSemanticTokens(resultId: string | undefined): void {
+		//throw new Error('Method not implemented.');
 	}
 }
 

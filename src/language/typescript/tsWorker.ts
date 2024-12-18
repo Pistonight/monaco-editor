@@ -311,6 +311,16 @@ export class TypeScriptWorker implements ts.LanguageServiceHost, ITypeScriptWork
 		return this._languageService.getDocumentHighlights(fileName, position, filesToSearch);
 	}
 
+	async getEncodedSemanticClassifications(
+		fileName: string,
+		span: ts.TextSpan
+	): Promise<ts.Classifications | undefined> {
+		if (fileNameIsLib(fileName)) {
+			return undefined;
+		}
+		return this._languageService.getEncodedSemanticClassifications(fileName, span, '2020' as any);
+	}
+
 	async getDefinitionAtPosition(
 		fileName: string,
 		position: number
